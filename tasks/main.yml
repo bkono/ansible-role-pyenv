@@ -1,0 +1,123 @@
+---
+# tasks file for ansible-role-pyenv
+
+- name: "Installing dependencies (centos)"
+  yum:
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - git
+    - gcc
+    - git
+    - patch
+    - zlib-devel
+    - bzip2
+    - bzip2-devel
+    - readline-devel
+    - sqlite
+    - sqlite-devel
+    - which
+    - openssl-devel
+    - python-pip
+  when: ansible_distribution|lower == "centos"
+
+- name: "Installing dependencies (debian)"
+  apt:
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - git
+    - python-pip
+    - build-essential
+    - libssl-dev
+    - zlib1g-dev
+    - libbz2-dev
+    - libreadline-dev
+    - libsqlite3-dev
+    - wget
+    - curl
+    - llvm
+    - libncurses5-dev
+    - libncursesw5-dev
+    - xz-utils
+    - tk-dev
+  when: ansible_os_family|lower == "debian"
+
+- name: Ensure directory and permissions
+  file:
+    path: /usr/local/pyenv
+    owner: root
+    group: wheel
+    mode: 0775
+    recurse: yes
+    state: directory
+  become: yes
+
+- name: Install pyenv
+  git:
+    repo: "https://github.com/pyenv/pyenv"
+    dest: /usr/local/pyenv
+    force: no
+    update: no
+  become: yes
+
+- name: Create pyenv symlink
+  file:
+    src: /usr/local/pyenv/bin/pyenv
+    dest: /usr/local/bin/pyenv
+    group: wheel
+    mode: 0775
+    state: link
+  become: yes
+
+- name: Add pyenv to /etc/profile.d
+  template:
+    src: pyenv.sh.j2
+    dest: /etc/profile.d/pyenv.sh
+    group: wheel
+    mode: 0775
+  become: yes
+
+- name: Ensure shims dir
+  file:
+    path: /usr/local/pyenv/shims
+    owner: root
+    group: wheel
+    mode: 0775
+    recurse: yes
+    state: directory
+  become: yes
+
+- name: Install pyenv-virtualenv
+  git:
+    repo: "https://github.com/pyenv/pyenv-virtualenv"
+    dest: /usr/local/pyenv/plugins/pyenv-virtualenv
+    force: no
+    update: no
+  become: yes
+
+- name: Install python versions
+  shell: "PYENV_ROOT=/usr/local/pyenv /usr/local/bin/pyenv install -s {{item}}"
+  args:
+    creates: "/usr/local/pyenv/versions/{{item}}"
+  with_items: "{{python_versions}}"
+
+- name: Configure virtualenvs
+  shell: "PYENV_ROOT=/usr/local/pyenv /usr/local/bin/pyenv virtualenv {{item.version}} {{item.name}}"
+  args:
+    creates: "/usr/local/pyenv/versions/{{item.name}}"
+  when: python_virtualenvs is defined
+  with_items: "{{python_virtualenvs}}"
+
+- name: Set global python
+  shell: "PYENV_ROOT=/usr/local/pyenv /usr/local/bin/pyenv global {{python_versions[0]}}"
+
+- name: Confirm directory and permissions
+  file:
+    path: /usr/local/pyenv
+    owner: root
+    group: wheel
+    mode: 0775
+    recurse: yes
+    state: directory
+  become: yes

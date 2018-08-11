@@ -1,0 +1,5 @@
+---
+# defaults file for ansible-role-pyenv
+
+python_versions:
+  - 3.6.5
